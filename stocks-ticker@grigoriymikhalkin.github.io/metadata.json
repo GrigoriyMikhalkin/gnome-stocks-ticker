@@ -1,0 +1,8 @@
+{
+    "uuid": "stocks-ticker@grigoriymikhalkin.github.io",
+    "name": "Stocks Ticker",
+    "description": "This extension puts stocks ticker in top panel.",
+    "version": 1,
+    "shell-version": ["3.36"],
+    "url": "https://github.com/GrigoriyMikhalkin/gnome-stocks-ticker"
+}

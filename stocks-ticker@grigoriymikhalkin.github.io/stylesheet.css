@@ -1,0 +1,11 @@
+.status-text {
+  margin-top: 4px;
+}
+
+.up-status-text {
+  color: green;
+}
+
+.down-status-text {
+  color: red;
+}
