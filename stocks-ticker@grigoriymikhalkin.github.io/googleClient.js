@@ -1,6 +1,10 @@
 'use strict';
 
 const Soup = imports.gi.Soup;
+const ExtensionUtils = imports.misc.extensionUtils;
+
+const Me = ExtensionUtils.getCurrentExtension();
+const CurrencyMap = Me.imports.currencyMap.CurrencyMap;
 
 
 const BASE_URL = 'https://www.google.com/';
@@ -18,10 +22,13 @@ var GoogleClient = class GoogleClient {
     // Returns updated prices for financials in following format:
     // {
     //    financialId: {
+    //      name: string,
     //      price: number,
     //      change: NEGATIVE | POSITIVE,
     //      percent_change: number,
-    //      symbol: string
+    //      symbol: string,
+    //      currency: string,
+    //      exchange: string
     //    }
     // }
 
@@ -30,11 +37,15 @@ var GoogleClient = class GoogleClient {
       let priceUpdates = {};
       const respBody = JSON.parse(message.response_body.data.slice(4));
       for (let e of respBody["PriceUpdate"]["entities"]) {
+        let currencyCode = e['financial_entity']['currency_code'];
         priceUpdates[e["live_update_id"]["financial_id"]] = {
+          name: e["financial_entity"]["common_entity_data"]["name"],
           price: e["financial_entity"]["common_entity_data"]["last_value_dbl"],
           change: e["financial_entity"]["common_entity_data"]["change"],
           percent_change: e["financial_entity"]['common_entity_data']["percent_change"].replace(' ', ''),
-          symbol: e['financial_entity']['common_entity_data']['symbol']
+          symbol: e['financial_entity']['common_entity_data']['symbol'],
+          currency: CurrencyMap[currencyCode] || ' ' + currencyCode,
+          exchange: e['financial_entity']['exchange']
         }
       }
 

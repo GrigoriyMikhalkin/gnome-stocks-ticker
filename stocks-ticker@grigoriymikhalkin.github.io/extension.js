@@ -5,96 +5,96 @@ const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
 const Mainloop = imports.mainloop;
 const Util = imports.misc.util;
+const ExtensionUtils = imports.misc.extensionUtils;
 
 const {St, Clutter, GObject, Gio} = imports.gi;
 
-const ExtensionUtils = imports.misc.extensionUtils
-const Me = ExtensionUtils.getCurrentExtension()
+const Me = ExtensionUtils.getCurrentExtension();
 const GoogleClient = Me.imports.googleClient.GoogleClient;
 
 
 let stocksTicker, timeout;
-
-// function setStockIndicator() {
-//   counter++;
-//   if (counter % 2 === 0) {
-//     panelButtonText.set_text("INL - 43.2 ▲1.2%");
-//   } else {
-//     panelButtonText.set_text("NVD - 555.2$ ▲3.2%");
-//   }
-//   return true;
-// }
-
-const ScrollMenu = class extends PopupMenu.PopupMenuBase {
-  constructor(menu, styleClass) {
-    super(menu);
-    this.box = new St.BoxLayout({
-      style_class: styleClass,
-      vertical: true
-    });
-
-    this.actor = new St.ScrollView({
-      style_class: 'scroll-menu',
-      hscrollbar_policy: St.PolicyType.NEVER,
-      vscrollbar_policy: St.PolicyType.NEVER
-    });
-    this.actor.add_actor(this.box);
-  }
-}
 
 const StocksTicker = GObject.registerClass(
   class StocksTicker extends PanelMenu.Button {
     _init() {
       super._init(0);
 
-      this._client = new GoogleClient();
+      this._load_schema();
 
+      this._client = new GoogleClient();
       this._load_data();
 
-      const infoBox = this._create_info_box();
+      this._infoBox = this._create_info_box();
       const menuBtnBox = this._create_menu_btn_box();
 
       this._box = new St.BoxLayout({
         vertical: true,
       });
-      this._box.add_actor(infoBox);
-      this._box.add_actor(menuBtnBox);
+      this._box.add_child(this._infoBox);
+      this._box.add_child(menuBtnBox);
 
       const menuItem = new PopupMenu.PopupBaseMenuItem({
         reactive: false
       });
-      menuItem.add_actor(this._box);
+      menuItem.add_child(this._box);
       this.menu.addMenuItem(menuItem);
+    }
+
+    _load_schema() {
+      const sss = Gio.SettingsSchemaSource;
+      const schemaSource = sss.new_from_directory(
+        Me.dir.get_child("schemas").get_path(),
+        sss.get_default(),
+        false
+      );
+
+      const schemaObj = schemaSource.lookup('org.gnome.shell.extensions.stocks-ticker', true);
+      if (!schemaObj) {
+        throw new Error('cannot find schema');
+      }
+
+      const settings = new Gio.Settings({settings_schema: schemaObj});
+      settings.set_strv('fids', ['/g/1dv30z_t', '/m/0ckrtns'])
+      this._fids = settings.get_strv('fids');
+      log(this._fids.length);
     }
 
     _load_data() {
       const ctx = this;
 
       this._client.get_prices_update(
-        ['/g/1dv30z_t', '/m/0ckrtns'],
+        ctx._fids,
         (priceUpdates) => {
           ctx._data = priceUpdates;
           ctx._set_label();
+          ctx._set_menu();
         }
       );
     }
 
-    _set_label() {
-      const priceUpdate = this._data['/g/1dv30z_t'];
+    _create_label(ind) {
+      const priceUpdate = this._data[this._fids[ind]];
       const isChangeNegative = priceUpdate['change'] === ' NEGATIVE';
 
+      return new St.Label({
+        style_class: "status-text" + (isChangeNegative ? ' down-status-text' : ' up-status-text'),
+        text: priceUpdate['name'] + '(' + priceUpdate['symbol'] + ':' + priceUpdate['exchange'] + ')'
+          + " - " + priceUpdate['price'] + priceUpdate['currency'] +
+          (isChangeNegative ? '  ▼' : '  ▲') + priceUpdate['percent_change']
+      });
+    }
+
+    _set_label() {
       if (this._label) {
         this.remove_child(this._label);
       }
-      this._label = new St.Label({
-        style_class: "status-text" + (isChangeNegative ? ' down-status-text' : ' up-status-text'),
-        text: priceUpdate['symbol'] + " - " + priceUpdate['price'] +
-          (isChangeNegative ? '  ▼' : '  ▲') + priceUpdate['percent_change']
-      });
+
+      this._label = this._create_label(0);
       this.add_child(this._label);
     }
 
-    _create_info_box() {
+    _set_menu() {
       const infoBox = new St.BoxLayout({
         vertical: true,
         x_expand: true,
@@ -102,18 +102,21 @@ const StocksTicker = GObject.registerClass(
         y_align: Clutter.ActorAlign.START
       });
 
-      let lb = new St.Label({
-        style_class: "status-text",
-        text: "INL - 43.2 ▲1.2%"
-      });
-      infoBox.add_actor(lb);
+      for (let i in this._fids) {
+        let lb = this._create_label(i);
+        infoBox.add_child(lb);
+      }
 
+      this._infoBox.add_actor(infoBox);
+
+    }
+
+    _create_info_box() {
       const scrollView = new St.ScrollView({
         hscrollbar_policy: St.PolicyType.NEVER,
         vscrollbar_policy: St.PolicyType.AUTOMATIC,
         overlay_scrollbars: true, x_expand: true, y_expand: true,
       });
-      scrollView.add_actor(infoBox);
 
       return scrollView;
     }
@@ -137,7 +140,7 @@ const StocksTicker = GObject.registerClass(
       settingsBtn.connect('clicked', () => {
         Util.spawn(['gnome-shell-extension-prefs', 'stocks-ticker@grigoriymikhalkin.github.io']);
       });
-      menuBtnBox.add_actor(settingsBtn);
+      menuBtnBox.add_child(settingsBtn);
 
       return menuBtnBox;
     }
