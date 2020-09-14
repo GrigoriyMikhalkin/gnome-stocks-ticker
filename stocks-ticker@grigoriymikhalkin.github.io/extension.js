@@ -13,13 +13,14 @@ const Me = ExtensionUtils.getCurrentExtension();
 const GoogleClient = Me.imports.googleClient.GoogleClient;
 
 
-let stocksTicker, timeout;
+let stocksTicker, labelRefreshTimeout, dataRefreshTimeout;
 
 const StocksTicker = GObject.registerClass(
   class StocksTicker extends PanelMenu.Button {
     _init() {
       super._init(0);
 
+      this._refresh_cnt = 0;
       this._load_schema();
 
       this._client = new GoogleClient();
@@ -56,8 +57,8 @@ const StocksTicker = GObject.registerClass(
 
       const settings = new Gio.Settings({settings_schema: schemaObj});
       settings.set_strv('fids', ['/g/1dv30z_t', '/m/0ckrtns'])
+
       this._fids = settings.get_strv('fids');
-      log(this._fids.length);
     }
 
     _load_data() {
@@ -66,9 +67,13 @@ const StocksTicker = GObject.registerClass(
       this._client.get_prices_update(
         ctx._fids,
         (priceUpdates) => {
+          log("Data refreshed");
           ctx._data = priceUpdates;
           ctx._set_label();
           ctx._set_menu();
+
+          // Set next call
+          dataRefreshTimeout = Mainloop.timeout_add_seconds(30 * 60, ctx._load_data.bind(ctx));
         }
       );
     }
@@ -90,8 +95,15 @@ const StocksTicker = GObject.registerClass(
         this.remove_child(this._label);
       }
 
-      this._label = this._create_label(0);
+      if (this._refresh_cnt === this._fids.length) {
+        this._refresh_cnt = 0;
+      }
+      this._label = this._create_label(this._refresh_cnt);
       this.add_child(this._label);
+      this._refresh_cnt++;
+
+      // Set next call
+      labelRefreshTimeout = Mainloop.timeout_add_seconds(10, this._set_label.bind(this));
     }
 
     _set_menu() {
@@ -151,11 +163,12 @@ function init() {}
 
 function enable() {
   stocksTicker = new StocksTicker();
-  Main.panel.addToStatusArea('stocksTicker',stocksTicker, 0, 'center');
-  // timeout = Mainloop.timeout_add_seconds(2.0, setStockIndicator);
+  Main.panel.addToStatusArea('stocksTicker', stocksTicker, 0, 'right');
 }
 
 function disable() {
-  Mainloop.source_remove(timeout);
-  Main.panel._centerBox.remove_child(stocksTicker);
+  Mainloop.source_remove(labelRefreshTimeout);
+  Mainloop.source_remove(dataRefreshTimeout);
+  stocksTicker.get_parent().remove_child(stocksTicker);
+  // Main.panel._centerBox.remove_child(stocksTicker);
 }
