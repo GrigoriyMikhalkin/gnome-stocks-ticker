@@ -13,7 +13,7 @@ const Me = ExtensionUtils.getCurrentExtension();
 const GoogleClient = Me.imports.googleClient.GoogleClient;
 
 
-let stocksTicker, labelRefreshTimeout, dataRefreshTimeout;
+let indicator, labelRefreshTimeout, dataRefreshTimeout;
 
 const StocksTicker = GObject.registerClass(
   class StocksTicker extends PanelMenu.Button {
@@ -69,6 +69,8 @@ const StocksTicker = GObject.registerClass(
         (priceUpdates) => {
           log("Data refreshed");
           ctx._data = priceUpdates;
+
+          Mainloop.source_remove(labelRefreshTimeout);
           ctx._set_label();
           ctx._set_menu();
 
@@ -162,13 +164,16 @@ const StocksTicker = GObject.registerClass(
 function init() {}
 
 function enable() {
-  stocksTicker = new StocksTicker();
-  Main.panel.addToStatusArea('stocksTicker', stocksTicker, 0, 'right');
+  indicator = new StocksTicker();
+  Main.panel.addToStatusArea('stocksTicker', indicator);
 }
 
 function disable() {
   Mainloop.source_remove(labelRefreshTimeout);
   Mainloop.source_remove(dataRefreshTimeout);
-  stocksTicker.get_parent().remove_child(stocksTicker);
-  // Main.panel._centerBox.remove_child(stocksTicker);
+
+  if (indicator !== null) {
+    indicator.destroy();
+    indicator = null;
+  }
 }
