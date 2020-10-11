@@ -69,11 +69,15 @@ var GoogleClient = class GoogleClient {
       let suggestions = [];
       const respBody = JSON.parse(message.response_body.data.slice(19, -1));
       for (let e of respBody[1]) {
+        let info = e[3];
+        if (!info || !info['c']) {
+          continue
+        }
         suggestions.push({
-          name: e['c'],
-          symbol: e['t'],
-          financialId: e['m'],
-          exchange: e['x']
+          name: info['c'],
+          symbol: info['t'],
+          financialId: info['m'],
+          exchange: info['x']
         });
       }
 

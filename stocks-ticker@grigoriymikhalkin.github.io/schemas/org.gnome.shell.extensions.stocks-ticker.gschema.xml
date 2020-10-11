@@ -1,10 +1,10 @@
-<?<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <schema id="org.gnome.shell.extensions.stocks-ticker"
     path="/org/gnome/shell/extensions/stocks-ticker/">
-    <key type="as" name="fids">
-      <default>['/g/1dv30z_t']</default>
-      <summary>List of financial ids for stocks-ticker extension</summary>
+    <key type="aa{ss}" name="financials">
+      <default>[{"name": "Intel Corp.", "symbol": "INL", "financialId": "/g/1dv30z_t", "exchange": "FRA"}]</default>
+      <summary>List of financials to track</summary>
     </key>
   </schema>
 </schemalist>

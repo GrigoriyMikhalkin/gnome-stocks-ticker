@@ -7,7 +7,7 @@ const Mainloop = imports.mainloop;
 const Util = imports.misc.util;
 const ExtensionUtils = imports.misc.extensionUtils;
 
-const {St, Clutter, GObject, Gio} = imports.gi;
+const {St, Clutter, GObject, GLib, Gio} = imports.gi;
 
 const Me = ExtensionUtils.getCurrentExtension();
 const GoogleClient = Me.imports.googleClient.GoogleClient;
@@ -21,11 +21,6 @@ const StocksTicker = GObject.registerClass(
       super._init(0);
 
       this._refresh_cnt = 0;
-      this._load_schema();
-
-      this._client = new GoogleClient();
-      this._load_data();
-
       this._infoBox = this._create_info_box();
       const menuBtnBox = this._create_menu_btn_box();
 
@@ -40,6 +35,34 @@ const StocksTicker = GObject.registerClass(
       });
       menuItem.add_child(this._box);
       this.menu.addMenuItem(menuItem);
+
+      this._client = new GoogleClient();
+      this._load_schema();
+
+      // const currentFinancials = this.settings.get_value('financials');
+      // let financialsArray = [];
+      // for (let i=0; i<currentFinancials.n_children(); i++) {
+      //   financialsArray.push(currentFinancials.get_child_value(i));
+      // }
+      // let financial = {
+      //   name: "Nvidia",
+      //   symbol: "NVD",
+      //   financialId: "/m/07zllzd",
+      //   exchange: "NASDAQ"
+      // }
+      // let d = [];
+      // for (let key in financial) {
+      //   let gKey = GLib.Variant.new_string(key);
+      //   let gVal = GLib.Variant.new_string(financial[key]);
+      //   d.push(GLib.Variant.new_dict_entry(gKey, gVal));
+      // }
+      // let v = GLib.Variant.new_array(new GLib.VariantType('{ss}'), d);
+      // financialsArray.push(v);
+      //
+      // const variantType = new GLib.VariantType('a{ss}');
+      // const newFinancials = GLib.Variant.new_array(variantType, financialsArray);
+      // this.settings.set_value('financials', newFinancials);
+      // this.settings.vfunc_changed('financials');
     }
 
     _load_schema() {
@@ -55,10 +78,30 @@ const StocksTicker = GObject.registerClass(
         throw new Error('cannot find schema');
       }
 
-      const settings = new Gio.Settings({settings_schema: schemaObj});
-      settings.set_strv('fids', ['/g/1dv30z_t', '/m/0ckrtns'])
+      const ctx = this;
+      this.settings = new Gio.Settings({settings_schema: schemaObj});
+      this.settings.connect('changed', (key) => {
+        if (key === 'financials') {
+          ctx._update_fids.bind(ctx)();
+        }
+      });
+      this._update_fids();
+    }
 
-      this._fids = settings.get_strv('fids');
+    _update_fids() {
+      Mainloop.source_remove(dataRefreshTimeout);
+
+      const financials = this.settings.get_value('financials');
+      let fids = [];
+
+      for (let i=0; i < financials.n_children(); i++)
+      {
+        let [v, _] = financials.get_child_value(i).lookup_value('financialId', null).get_string();
+        fids.push(v);
+      }
+
+      this._fids = fids;
+      this._load_data();
     }
 
     _load_data() {
