@@ -38,31 +38,6 @@ const StocksTicker = GObject.registerClass(
 
       this._client = new GoogleClient();
       this._load_schema();
-
-      // const currentFinancials = this.settings.get_value('financials');
-      // let financialsArray = [];
-      // for (let i=0; i<currentFinancials.n_children(); i++) {
-      //   financialsArray.push(currentFinancials.get_child_value(i));
-      // }
-      // let financial = {
-      //   name: "Nvidia",
-      //   symbol: "NVD",
-      //   financialId: "/m/07zllzd",
-      //   exchange: "NASDAQ"
-      // }
-      // let d = [];
-      // for (let key in financial) {
-      //   let gKey = GLib.Variant.new_string(key);
-      //   let gVal = GLib.Variant.new_string(financial[key]);
-      //   d.push(GLib.Variant.new_dict_entry(gKey, gVal));
-      // }
-      // let v = GLib.Variant.new_array(new GLib.VariantType('{ss}'), d);
-      // financialsArray.push(v);
-      //
-      // const variantType = new GLib.VariantType('a{ss}');
-      // const newFinancials = GLib.Variant.new_array(variantType, financialsArray);
-      // this.settings.set_value('financials', newFinancials);
-      // this.settings.vfunc_changed('financials');
     }
 
     _load_schema() {
@@ -81,9 +56,8 @@ const StocksTicker = GObject.registerClass(
       const ctx = this;
       this.settings = new Gio.Settings({settings_schema: schemaObj});
       this.settings.connect('changed', (key) => {
-        if (key === 'financials') {
-          ctx._update_fids.bind(ctx)();
-        }
+        log(key);
+        ctx._update_fids.bind(ctx)();
       });
       this._update_fids();
     }
@@ -125,12 +99,15 @@ const StocksTicker = GObject.registerClass(
 
     _create_label(ind) {
       const priceUpdate = this._data[this._fids[ind]];
-      const isChangeNegative = priceUpdate['change'] === ' NEGATIVE';
+      const isChangeNegative = priceUpdate['change'] === 'NEGATIVE';
 
+      let name = priceUpdate['name'] + '(' + priceUpdate['symbol'] + ':' + priceUpdate['exchange'] + ')'
+      if (name.length > 20) {
+        name = name.slice(0, 17) + '...';
+      }
       return new St.Label({
         style_class: "status-text" + (isChangeNegative ? ' down-status-text' : ' up-status-text'),
-        text: priceUpdate['name'] + '(' + priceUpdate['symbol'] + ':' + priceUpdate['exchange'] + ')'
-          + " - " + priceUpdate['price'] + priceUpdate['currency'] +
+        text: name + " - " + priceUpdate['price'] + priceUpdate['currency'] +
           (isChangeNegative ? '  ▼' : '  ▲') + priceUpdate['percent_change']
       });
     }
@@ -184,7 +161,7 @@ const StocksTicker = GObject.registerClass(
 
       const settingsIcon = new St.Icon({
         icon_name: 'emblem-system-symbolic',
-        style_class: 'popup-menu-icon'
+        icon_size: 20
       });
       const settingsBtn = new St.Button({
         reactive: true,

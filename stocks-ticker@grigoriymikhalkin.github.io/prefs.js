@@ -235,23 +235,24 @@ const PrefsWidget = GObject.registerClass(
                 financial.symbol, financial.name, financial.exchange
               ]);
 
-              const currentFinancials = ctx.settings.get_value('financials');
+              const currentFinancials = this.settings.get_value('financials');
               let financialsArray = [];
               for (let i=0; i<currentFinancials.n_children(); i++) {
                 financialsArray.push(currentFinancials.get_child_value(i));
               }
 
               // Construct new financial object
-              const v = new GLib.Variant('a{ss}');
-              const vDict = new GLib.VariantDict(v);
+              let financialObj = [];
               for (let key in financial) {
-                vDict.insert_value(key, GLib.Variant.new_string(financial[key]));
+                let gKey = GLib.Variant.new_string(key);
+                let gVal = GLib.Variant.new_string(financial[key]);
+                financialObj.push(GLib.Variant.new_dict_entry(gKey, gVal));
               }
-              financialsArray.push(vDict.end());
+              financialsArray.push(GLib.Variant.new_array(new GLib.VariantType('{ss}'), financialObj));
 
               const variantType = new GLib.VariantType('a{ss}');
               const newFinancials = GLib.Variant.new_array(variantType, financialsArray);
-              ctx.settings.set_value('financials', newFinancials);
+              this.settings.set_value('financials', newFinancials);
             }
           }
         });
